@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardcore Clicker - Fixed Version</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #0d0d15;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            padding: 20px;
+            z-index: 10;
+        }
+        .stats-box {
+            background: #161625;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        #score { font-size: 35px; color: #ff4d4d; display: block; margin: 10px 0; }
+        #main-btn {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 6px solid #222;
+            background: #ff4d4d;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 5px 15px rgba(255, 77, 77, 0.3);
+        }
+        #main-btn:active { transform: scale(0.95); }
+        #shop-container {
+            margin-top: 20px;
+            background: #111;
+            border: 2px solid #222;
+            border-radius: 10px;
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #1a1a1a;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            border-left: 4px solid #444;
+        }
+        .item.locked { opacity: 0.4; background: #000; }
+        .item-info { text-align: left; font-size: 12px; }
+        .item-info b { font-size: 14px; color: #ff4d4d; }
+        .buy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 7px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .buy-btn:disabled { background: #444; cursor: not-allowed; }
+        #dvd-logo {
+            position: fixed;
+            width: 60px; height: 30px;
+            background: #555;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .lvl-tag { background: #333; padding: 2px 4px; border-radius: 3px; font-size: 10px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <div id="dvd-logo">DVD</div>
+
+    <div id="game-container">
+        <div class="stats-box">
+            <span style="font-size: 12px; color: #888;">Player Level: <span id="player-level">1</span></span>
+            <b id="score">0</b>
+            <div style="font-size: 13px; color: #aaa;">
+                Click: +<span id="c-power">1</span> | Auto: +<span id="a-power">0</span>/s
+            </div>
+        </div>
+
+        <button id="main-btn">CLICK</button>
+
+        <div id="shop-container">
+            <div id="shop-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // Game Logic
+        var score = 0;
+        var totalEver = 0;
+        var clickPower = 1;
+        var autoPower = 0;
+        var dvdBonus = 2;
+        var playerLvl = 1;
+
+        var scoreDisplay = document.getElementById('score');
+        var levelDisplay = document.getElementById('player-level');
+        var cDisplay = document.getElementById('c-power');
+        var aDisplay = document.getElementById('a-power');
+        var shopList = document.getElementById('shop-list');
+
+        // Generate 30 Mixed Items
+        var itemsData = [];
+        var types = ['Manual', 'Auto', 'DVD'];
+        for (var i = 1; i <= 30; i++) {
+            var type = types[(i - 1) % 3];
+            itemsData.push({
+                id: i,
+                name: type + " Upgrade v" + Math.ceil(i/3),
+                type: type,
+                cost: Math.floor(100 * Math.pow(1.7, i)), // ÛÇáí ÌÏÇð
+                reward: 0.5 + (i * 0.2), // ÑÈÍ Þáíá
+                reqLvl: Math.floor(i * 1.3) // ãÓÊæì ãØáæÈ
+            });
+        }
+
+        window.buyItem = function(id) {
+            var item = itemsData[id - 1];
+            if (score >= item.cost && playerLvl >= item.reqLvl) {
+                score -= item.cost;
+                if (item.type === 'Manual') clickPower += item.reward;
+                else if (item.type === 'Auto') autoPower += item.reward;
+                else dvdBonus += item.reward * 2;
+
+                item.cost = Math.floor(item.cost * 2);
+                renderShop();
+                updateUI();
+            }
+        };
+
+        function updateUI() {
+            scoreDisplay.innerText = Math.floor(score);
+            cDisplay.innerText = clickPower.toFixed(1);
+            aDisplay.innerText = autoPower.toFixed(1);
+            
+            playerLvl = Math.floor(Math.sqrt(totalEver / 100)) + 1;
+            levelDisplay.innerText = playerLvl;
+        }
+
+        function renderShop() {
+            var html = '';
+            for (var i = 0; i < itemsData.length; i++) {
+                var item = itemsData[i];
+                var locked = playerLvl < item.reqLvl;
+                var canBuy = score >= item.cost && !locked;
+                
+                html += '<div class="item ' + (locked ? 'locked' : '') + '">' +
+                        '<div class="item-info">' +
+                        '<b>' + item.name + '</b> <span class="lvl-tag">Lvl ' + item.reqLvl + '</span><br>' +
+                        'Cost: ' + item.cost + ' | Gain: +' + item.reward.toFixed(1) +
+                        '</div>' +
+                        '<button class="buy-btn" onclick="buyItem(' + item.id + ')" ' + (canBuy ? '' : 'disabled') + '>' +
+                        (locked ? 'LOCKED' : 'BUY') +
+                        '</button></div>';
+            }
+            shopList.innerHTML = html;
+        }
+
+        document.getElementById('main-btn').onclick = function() {
+            score += clickPower;
+            totalEver += clickPower;
+            updateUI();
+            renderShop();
+        };
+
+        // Auto Income
+        setInterval(function() {
+            if (autoPower > 0) {
+                score += autoPower / 10;
+                totalEver += autoPower / 10;
+                updateUI();
+            }
+        }, 100);
+
+        // Shop Refresh
+        setInterval(renderShop, 2000);
+
+        // DVD Animation
+        var dvd = document.getElementById('dvd-logo');
+        var dx = 3, dy = 3, x = 0, y = 0;
+        function animate() {
+            var winW = window.innerWidth;
+            var winH = window.innerHeight;
+            x += dx; y += dy;
+            if (x + 60 >= winW || x <= 0) dx *= -1;
+            if (y + 30 >= winH || y <= 0) dy *= -1;
+            
+            // Corner check
+            if ((x + 60 >= winW || x <= 0) && (y + 30 >= winH || y <= 0)) {
+                score += dvdBonus;
+                totalEver += dvdBonus;
+                dvd.style.background = "gold";
+                setTimeout(function(){ dvd.style.background = "#555"; }, 500);
+            }
+            dvd.style.left = x + 'px';
+            dvd.style.top = y + 'px';
+            requestAnimationFrame(animate);
+        }
+        animate();
+        renderShop();
+    </script>
+</body>
+</html>
